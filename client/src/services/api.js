@@ -1,14 +1,12 @@
 import { fetchWithTimeout, createBackoffFetcher } from '../utils/fetchWithTimeout';
-
-// Get the API base URL from environment variables
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { config } from '../config/environment';
 
 /**
  * Get the list of all torrents
  */
 export const getTorrents = async () => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents`, {}, 5000);
+    const response = await fetchWithTimeout(config.getApiUrl('/api/torrents'), {}, 5000);
     return await response.json();
   } catch (error) {
     console.error('Error fetching torrents:', error);
@@ -22,7 +20,7 @@ export const getTorrents = async () => {
  */
 export const getTorrentDetails = async (id) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents/${id}`, {}, 10000);
+    const response = await fetchWithTimeout(config.getApiUrl(`/api/torrents/${id}`), {}, 10000);
     return await response.json();
   } catch (error) {
     console.error(`Error fetching details for torrent ${id}:`, error);
@@ -36,7 +34,7 @@ export const getTorrentDetails = async (id) => {
  */
 export const getTorrentStats = async (id) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents/${id}/stats`, {}, 5000);
+    const response = await fetchWithTimeout(config.getApiUrl(`/api/torrents/${id}/stats`), {}, 5000);
     return await response.json();
   } catch (error) {
     console.error(`Error fetching stats for torrent ${id}:`, error);
@@ -50,7 +48,7 @@ export const getTorrentStats = async (id) => {
  */
 export const getTorrentFiles = async (id) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents/${id}/files`, {}, 8000);
+    const response = await fetchWithTimeout(config.getApiUrl(`/api/torrents/${id}/files`), {}, 8000);
     return await response.json();
   } catch (error) {
     console.error(`Error fetching files for torrent ${id}:`, error);
@@ -64,7 +62,7 @@ export const getTorrentFiles = async (id) => {
  */
 export const addTorrent = async (torrentId) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents`, {
+    const response = await fetchWithTimeout(config.getApiUrl('/api/torrents'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -85,7 +83,7 @@ export const addTorrent = async (torrentId) => {
  */
 export const deleteTorrent = async (id) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents/${id}`, {
+    const response = await fetchWithTimeout(config.getApiUrl(`/api/torrents/${id}`), {
       method: 'DELETE',
     }, 10000);
     
@@ -102,7 +100,7 @@ export const deleteTorrent = async (id) => {
  * @param {number} fileIndex - File index
  */
 export const getStreamUrl = (torrentId, fileIndex) => {
-  return `${API_BASE_URL}/api/torrents/${torrentId}/files/${fileIndex}/stream`;
+  return config.getApiUrl(`/api/torrents/${torrentId}/files/${fileIndex}/stream`);
 };
 
 /**
@@ -111,7 +109,7 @@ export const getStreamUrl = (torrentId, fileIndex) => {
  */
 export const getImdbData = async (id) => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/torrents/${id}/imdb`, {}, 10000);
+    const response = await fetchWithTimeout(config.getApiUrl(`/api/torrents/${id}/imdb`), {}, 10000);
     return await response.json();
   } catch (error) {
     console.error(`Error fetching IMDB data for torrent ${id}:`, error);
@@ -124,7 +122,7 @@ export const getImdbData = async (id) => {
  */
 export const checkServerHealth = async () => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/system/health`, {}, 5000);
+    const response = await fetchWithTimeout(config.getApiUrl('/api/system/health'), {}, 5000);
     return await response.json();
   } catch (error) {
     console.error('Error checking server health:', error);

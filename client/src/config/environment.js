@@ -13,29 +13,48 @@ export const config = {
   // API Configuration
   apiBaseUrl: normalizeUrl(API_BASE_URL),
   
-  // API Endpoints
-  api: {
-    torrents: `${normalizeUrl(API_BASE_URL)}/api/torrents`,
-    cache: `${normalizeUrl(API_BASE_URL)}/api/cache`,
-    system: `${normalizeUrl(API_BASE_URL)}/api/system`,
+  // Helper functions
+  getApiUrl: (endpoint) => {
+    const baseUrl = normalizeUrl(API_BASE_URL);
+    
+    // If baseUrl is just a path (like '/api'), handle endpoint correctly
+    if (baseUrl.startsWith('/') && !baseUrl.startsWith('//')) {
+      // Base URL is a relative path like '/api'
+      // Remove leading '/api' from endpoint if it starts with '/api'
+      if (endpoint.startsWith('/api/')) {
+        endpoint = endpoint.substring(4); // Remove '/api' prefix
+      } else if (endpoint.startsWith('api/')) {
+        endpoint = endpoint.substring(3); // Remove 'api' prefix
+      }
+      return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    }
+    
+    // Base URL is a full URL (like 'http://localhost:3000')
+    return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  },
+  
+  // API Endpoints (dynamic to use proper URL generation)
+  get api() {
+    return {
+      torrents: config.getApiUrl('/api/torrents'),
+      cache: config.getApiUrl('/api/cache'),
+      system: config.getApiUrl('/api/system'),
+    };
   },
   
   // Development helpers
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD,
   
-  // Helper functions
-  getApiUrl: (endpoint) => `${normalizeUrl(API_BASE_URL)}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`,
-  
   // Torrent API helpers
   getTorrentUrl: (infoHash, endpoint = '') => 
-    `${normalizeUrl(API_BASE_URL)}/api/torrents/${infoHash}${endpoint ? `/${endpoint}` : ''}`,
+    config.getApiUrl(`/api/torrents/${infoHash}${endpoint ? `/${endpoint}` : ''}`),
     
   getStreamUrl: (infoHash, fileIndex) => 
-    `${normalizeUrl(API_BASE_URL)}/api/torrents/${infoHash}/files/${fileIndex}/stream`,
+    config.getApiUrl(`/api/torrents/${infoHash}/files/${fileIndex}/stream`),
     
   getDownloadUrl: (infoHash, fileIndex) => 
-    `${normalizeUrl(API_BASE_URL)}/api/torrents/${infoHash}/files/${fileIndex}/download`,
+    config.getApiUrl(`/api/torrents/${infoHash}/files/${fileIndex}/download`),
 };
 
 // Log configuration in development
