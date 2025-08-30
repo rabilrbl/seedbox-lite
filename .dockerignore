@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+
+# GitHub Actions
+.github
+
+# Documentation
+*.md
+screenshots/
+
+# Environment files
+.env*
+!.env.production
+
+# Node modules (we copy them separately in multistage build)
+node_modules
+*/node_modules
+
+# Build artifacts
+client/dist
+client/build
+
+# Cache directories
+.cache
+*/cache
+*/.cache
+
+# Temporary files
+.tmp
+tmp/
+*.tmp
+*.temp
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+docker-compose*.yml
+Dockerfile*
+!Dockerfile
+
+# Log files
+*.log
+logs/
+*/logs
+
+# Test files
+test/
+*/test
+*.test.js
+*.spec.js
+
+# Development files
+# start.sh - needed for container startup
