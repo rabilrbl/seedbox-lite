@@ -1,0 +1,115 @@
+name: Sync from Upstream
+
+on:
+  schedule:
+    # Run every hour to check for upstream changes
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Force sync even if no new commits'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  UPSTREAM_REPO: hotheadhacker/seedbox-lite
+  UPSTREAM_BRANCH: main
+  TARGET_BRANCH: main
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_commits: ${{ steps.check_commits.outputs.has_new_commits }}
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git || true
+          git fetch upstream
+
+      - name: Check for new commits
+        id: check_commits
+        run: |
+          # Get the latest commit hash from upstream
+          UPSTREAM_COMMIT=$(git rev-parse upstream/${{ env.UPSTREAM_BRANCH }})
+          LOCAL_COMMIT=$(git rev-parse HEAD)
+          
+          echo "upstream_commit=$UPSTREAM_COMMIT" >> $GITHUB_OUTPUT
+          echo "local_commit=$LOCAL_COMMIT" >> $GITHUB_OUTPUT
+          
+          if [ "$UPSTREAM_COMMIT" != "$LOCAL_COMMIT" ]; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+            echo "New commits found in upstream"
+          else
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+            echo "No new commits in upstream"
+          fi
+
+      - name: Merge upstream changes
+        if: steps.check_commits.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+        run: |
+          echo "Merging changes from upstream/${{ env.UPSTREAM_BRANCH }}"
+          git merge upstream/${{ env.UPSTREAM_BRANCH }} --no-edit || {
+            echo "Merge conflict detected. Creating a pull request instead."
+            exit 1
+          }
+
+      - name: Push changes
+        if: steps.check_commits.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+        run: |
+          git push origin ${{ env.TARGET_BRANCH }}
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Upstream Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream Repository**: ${{ env.UPSTREAM_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream Branch**: ${{ env.UPSTREAM_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Branch**: ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream Commit**: ${{ steps.check_commits.outputs.upstream_commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Local Commit**: ${{ steps.check_commits.outputs.local_commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Has New Commits**: ${{ steps.check_commits.outputs.has_new_commits }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_commits.outputs.has_new_commits }}" == "true" ] || [ "${{ github.event.inputs.force_sync }}" == "true" ]; then
+            echo "- **Action Taken**: Merged upstream changes and triggered rebuild" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Action Taken**: No action needed, already up to date" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  trigger-build:
+    needs: sync-upstream
+    if: needs.sync-upstream.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      
+    steps:
+      - name: Trigger Docker build workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docker-build.yml',
+              ref: '${{ env.TARGET_BRANCH }}'
+            });
+            
+            console.log('Triggered Docker build workflow after upstream sync');
