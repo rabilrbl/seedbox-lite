@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_new_commits: ${{ steps.check_commits.outputs.has_new_commits }}
+      merge_success: ${{ steps.merge.outputs.merge_success }}
     permissions:
       contents: write
       packages: write
@@ -64,15 +65,21 @@ jobs:
 
       - name: Merge upstream changes
         if: steps.check_commits.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+        id: merge
         run: |
           echo "Merging changes from upstream/${{ env.UPSTREAM_BRANCH }}"
-          git merge upstream/${{ env.UPSTREAM_BRANCH }} --no-edit || {
-            echo "Merge conflict detected. Creating a pull request instead."
+          if git merge upstream/${{ env.UPSTREAM_BRANCH }} --no-edit; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "Merge completed successfully"
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Merge conflict detected. Manual intervention required."
+            echo "Please resolve conflicts manually and create a pull request."
             exit 1
-          }
+          fi
 
       - name: Push changes
-        if: steps.check_commits.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+        if: (steps.check_commits.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true') && steps.merge.outputs.merge_success == 'true'
         run: |
           git push origin ${{ env.TARGET_BRANCH }}
 
@@ -95,7 +102,9 @@ jobs:
 
   trigger-build:
     needs: sync-upstream
-    if: needs.sync-upstream.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+    if: |
+      (needs.sync-upstream.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true') &&
+      needs.sync-upstream.outputs.merge_success == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: write
